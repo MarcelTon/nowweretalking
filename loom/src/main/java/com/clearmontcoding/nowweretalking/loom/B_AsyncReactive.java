@@ -1,5 +1,6 @@
 package com.clearmontcoding.nowweretalking.loom;
 
+import com.clearmontcoding.nowweretalking.loom.model.CustomException;
 import com.clearmontcoding.nowweretalking.loom.model.Movie;
 import com.clearmontcoding.nowweretalking.loom.model.Review;
 import com.clearmontcoding.nowweretalking.loom.model.Title;
@@ -9,23 +10,15 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStart;
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStop;
-
 public class B_AsyncReactive {
 
     public static void main(String[] args) {
-        benchmarkStart();
-
         getMovieIds()
-            .flatMap(movieId -> Mono.zip(getTitle(movieId), getReviews(movieId)))
-            .map(titleReviewTuple -> new Movie(titleReviewTuple.getT1(), titleReviewTuple.getT2()))
+            .flatMap(id -> Mono.zip(getTitle(id), getReviews(id)))
+            .map(tuple -> new Movie(tuple.getT1(), tuple.getT2()))
             .collect(Collectors.toList())
-            .doOnError(System.out::println)
-            .subscribe(System.out::println)
-            .dispose();
-
-        benchmarkStop();
+            .doOnError(CustomException::new)
+            .subscribe(System.out::println);
     }
 
     private static Flux<Long> getMovieIds() {

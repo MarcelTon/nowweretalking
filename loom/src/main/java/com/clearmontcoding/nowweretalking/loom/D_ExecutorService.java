@@ -1,5 +1,6 @@
 package com.clearmontcoding.nowweretalking.loom;
 
+import com.clearmontcoding.nowweretalking.loom.model.CustomException;
 import com.clearmontcoding.nowweretalking.loom.model.Movie;
 import com.clearmontcoding.nowweretalking.loom.model.Review;
 import com.clearmontcoding.nowweretalking.loom.model.Title;
@@ -8,30 +9,23 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStart;
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStop;
-
 public class D_ExecutorService {
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
-        benchmarkStart();
-
-        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
-            executorService.submit(D_ExecutorService::getMovieIds).get()
+    public static void main(String[] args) {
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            getMovieIds()
                 .parallelStream()
                 .map(movieId -> {
-                    var titleFuture = executorService.submit(() -> getTitle(movieId));
-                    var reviewFuture = executorService.submit(() -> getReviews(movieId));
+                    var titleFuture = executor.submit(() -> getTitle(movieId));
+                    var reviewFuture = executor.submit(() -> getReviews(movieId));
                     try {
                         return new Movie(titleFuture.get(), reviewFuture.get());
                     } catch (InterruptedException | ExecutionException ex) {
-                        throw new IllegalStateException("Double exception handling sadness.");
+                        throw new CustomException(ex);
                     }
                 })
                 .forEach(System.out::println);
         }
-
-        benchmarkStop();
     }
 
     private static List<Long> getMovieIds() {

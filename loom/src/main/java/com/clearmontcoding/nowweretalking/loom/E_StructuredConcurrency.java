@@ -1,5 +1,6 @@
 package com.clearmontcoding.nowweretalking.loom;
 
+import com.clearmontcoding.nowweretalking.loom.model.CustomException;
 import com.clearmontcoding.nowweretalking.loom.model.Movie;
 import com.clearmontcoding.nowweretalking.loom.model.Review;
 import com.clearmontcoding.nowweretalking.loom.model.Title;
@@ -7,30 +8,22 @@ import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.util.List;
 
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStart;
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStop;
-
 public class E_StructuredConcurrency {
 
     public static void main(String[] args) {
-        benchmarkStart();
-
-        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
-            getMovieIds().parallelStream()
-                .map(movieId -> {
-                    var title   = scope.fork(() -> getTitle(movieId));
+        getMovieIds().parallelStream()
+            .forEach(movieId -> {
+                try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+                    var title = scope.fork(() -> getTitle(movieId));
                     var reviews = scope.fork(() -> getReviews(movieId));
-                    try {
-                        scope.join().throwIfFailed(ex -> new IllegalStateException("Custom exception", ex));
-                        return new Movie(title.resultNow(), reviews.resultNow());
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                })
-                .forEach(System.out::println);
-        }
 
-        benchmarkStop();
+                    scope.join().throwIfFailed(CustomException::new);
+
+                    System.out.println(new Movie(title.resultNow(), reviews.resultNow()));
+                } catch (InterruptedException ex) {
+                    throw new CustomException(ex);
+                }
+            });
     }
 
     private static List<Long> getMovieIds() {

@@ -1,5 +1,6 @@
 package com.clearmontcoding.nowweretalking.loom;
 
+import com.clearmontcoding.nowweretalking.loom.model.CustomException;
 import com.clearmontcoding.nowweretalking.loom.model.Movie;
 import com.clearmontcoding.nowweretalking.loom.model.Review;
 import com.clearmontcoding.nowweretalking.loom.model.Title;
@@ -7,29 +8,19 @@ import com.clearmontcoding.nowweretalking.loom.model.Title;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStart;
-import static com.clearmontcoding.nowweretalking.loom.utility.ConferenceHelper.benchmarkStop;
 
 public class A_CompletableFuture {
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
-        benchmarkStart();
-
+    public static void main(String[] args) {
         getMovieIds()
-            .thenApplyAsync(movieIds ->
+            .thenApply(movieIds ->
                 movieIds.parallelStream()
-                    .map(movieId -> {
-                        var titleFuture = getTitle(movieId);
-                        return titleFuture.thenCombineAsync(getReviews(movieId), Movie::new)
-                            .thenAccept(System.out::println);
-                    })
+                    .map(movieId -> getTitle(movieId)
+                        .thenCombineAsync(getReviews(movieId), Movie::new)
+                        .thenAccept(System.out::println))
                     .toList())
-            .handleAsync((result, exception) -> Objects.nonNull(exception) ? exception : result)
-            .get();
-
-        benchmarkStop();
+            .handleAsync((result, ex) -> Objects.nonNull(ex) ? new CustomException(ex) : result)
+            .join();
     }
 
     private static CompletableFuture<List<Long>> getMovieIds() {
